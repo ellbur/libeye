@@ -52,7 +52,7 @@ point2 Screen::project(const point3 &eye, const point3 &p) const {
 }
 
 point3 Screen::project_back(const Screen &remote,
-	const point3 &eye, const point2 &im)
+	const point3 &eye, const point2 &im) const
 {
 	point3 real   = to_real(im);
 	point2 far_im = remote.project(eye, real);
@@ -79,6 +79,15 @@ Screen Screen::line_normal(const point3 &p1,
 }
 
 // -----------------------------------------------------------
+
+View::View(size_t _width, size_t _height) {
+	this->width  = _width;
+	this->height = _height;
+	
+	buffer = new double[width * height];
+	miny   = new int[width];
+	maxy   = new int[width];
+}
 
 View::View(size_t _width, size_t _height,
 	const Screen &_screen, const point3 &_eye)
@@ -225,7 +234,7 @@ void View::draw_pgram(const point3 &p,
 	draw_triangle(p+e1+e2, p+e1, p+e2);
 }
 
-point2 View::stereo_pair(const point3 &eye2, const point2 &p) {
+point2 View::stereo_pair(const point3 &eye2, const point2 &p) const {
 	point3 real  = screen.to_real(p);
 	double depth = get(p);
 	
@@ -296,6 +305,233 @@ void View::end_fill(const Screen &remote) {
 	}
 }
 
-// -------------------------------------------------
+// ------------------------------------------------------
+// BiView
+
+BiView::BiView(int _width, int _height, double eye_back, double eye_sep) :
+	left(_width, _height),
+	right(_width, _height)
+{
+	this->width  = _width;
+	this->height = _height;
+	
+	double scale = 0.02;
+	
+	double screen_width  = width  * scale;
+	double screen_height = height * scale;
+	
+	point3 eye1(-eye_sep/2, 0, -eye_back);
+	point3 eye2(+eye_sep/2, 0, -eye_back);
+	
+	point3 origin(-screen_width/2, screen_height/2, 0);
+	point3 e1(scale, 0, 0);
+	point3 e2(0, -scale, 0);
+	
+	Screen screen(origin, e1, e2);
+	
+	left.screen  = screen;
+	left.eye     = eye1;
+	
+	right.screen = screen;
+	right.eye    = eye2;
+}
+
+void BiView::flatten(double depth) {
+	left.flatten(depth);
+	right.flatten(depth);
+}
+
+void BiView::draw_point(const point3 &p) {
+	left.draw_point(p);
+	right.draw_point(p);
+}
+
+void BiView::draw_line(const point3 &p1, const point3 &p2) {
+	left.draw_line(p1, p2);
+	right.draw_line(p1, p2);
+}
+
+void BiView::draw_triangle(const point3 &p1,
+	const point3 &p2, const point3 &p3)
+{
+	left.draw_triangle(p1, p2, p3);
+	right.draw_triangle(p1, p2, p3);
+}
+
+void BiView::draw_pgram(const point3 &p,
+	const point3 e1, const point3 e2)
+{
+	left.draw_pgram(p, e1, e2);
+	right.draw_pgram(p, e1, e2);
+}
+
+point2 BiView::left_pair(const point2 &im) {
+	return right.stereo_pair(left.eye, im);
+}
+
+point2 BiView::right_pair(const point2 &im) {
+	return left.stereo_pair(right.eye, im);
+}
+
+// --------------------------------------------
+
+StereoBlank::StereoBlank(int _width, int _height) {
+	this->width  = _width;
+	this->height = _height;
+	
+	left_pair_buffer  = new int[width * height];
+	right_pair_buffer = new int[width * height];
+}
+
+StereoBlank::StereoBlank(const BiView &biview) {
+	this->width  = biview.right.width;
+	this->height = biview.right.height;
+	
+	left_pair_buffer  = new int[width * height];
+	right_pair_buffer = new int[width * height];
+	
+	set_left(biview.left, biview.right.eye);
+	set_right(biview.right, biview.left.eye);
+}
+
+StereoBlank::StereoBlank(const View &right, const point3 &eye) {
+	this->width  = right.width;
+	this->height = right.height;
+	
+	left_pair_buffer  = new int[width * height];
+	right_pair_buffer = new int[width * height];
+	
+	set_right(right, eye);
+}
+
+StereoBlank::~StereoBlank() {
+	delete[] left_pair_buffer;
+	delete[] right_pair_buffer;
+}
+
+void StereoBlank::set_left(const View &left, const point3 &eye) {
+	int x, y;
+	
+	for (x=0; x<width; x++)
+	for (y=0; y<height; y++) {
+		
+		point2 p(x, y);
+		p = left.stereo_pair(eye, p);
+		
+		int pair_x = (int) p.x();
+		
+		right_pair_buffer[x + y*width] = pair_x;
+	}
+}
+
+void StereoBlank::set_right(const View &right, const point3 &eye) {
+	int x, y;
+	
+	for (x=0; x<width; x++)
+	for (y=0; y<height; y++) {
+		
+		point2 p(x, y);
+		p = right.stereo_pair(eye, p);
+		
+		int pair_x = (int) p.x();
+		
+		left_pair_buffer[x + y*width] = pair_x;
+	}
+}
+
+int StereoBlank::get_left(int x, int y) const {
+	if (x < 0 || x >= width) return -1;
+	
+	int pair_x = left_pair_buffer[x + y*width];
+	
+	if (pair_x < 0 || pair_x >= width)
+		return -1;
+	
+	int check_x = right_pair_buffer[pair_x + y*width];
+	
+	if (abs(check_x - x) > 2)
+		return -1;
+	
+	return pair_x;
+}
+
+int StereoBlank::get_right(int x, int y) const {
+	if (x < 0 || x >= width) return -1;
+	
+	int pair_x = right_pair_buffer[x + y*width];
+	
+	if (pair_x < 0 || pair_x >= width)
+		return -1;
+	
+	int check_x = left_pair_buffer[pair_x + y*width];
+	
+	if (abs(check_x - x) > 2)
+		return -1;
+	
+	return pair_x;
+}
+
+int StereoBlank::force_left(int x, int y) const {
+	if (x < 0 || x >= width) return -1;
+	
+	int pair_x = left_pair_buffer[x + y*width];
+	
+	if (pair_x < 0 || pair_x >= width)
+		return -1;
+	
+	return pair_x;
+}
+
+int StereoBlank::force_right(int x, int y) const {
+	if (x < 0 || x >= width) return -1;
+	
+	int pair_x = right_pair_buffer[x + y*width];
+	
+	if (pair_x < 0 || pair_x >= width)
+		return -1;
+	
+	return pair_x;
+}
+
+void StereoBlank::isometric_grid(int &rows, int &cols,
+	int *&xvec, int &vgap, int rep) const
+{
+	int row, col;
+	int i;
+	
+	int background_gap = force_right(0, 0);
+	int gap = background_gap / rep;
+	vgap = (int) (gap * 0.28868);
+	
+	rows = height / vgap;
+	cols = width / gap;
+	
+	xvec = new int[rows * cols];
+	
+	int *ring = new int[rep];
+	
+	for (row=0; row<rows; row++) {
+		int offset = (row%2 == 0 ? 0 : gap/2);
+		for (i=0; i<rep; i++) {
+			ring[i] = offset + gap*i;
+		}
+		
+		int y = row * vgap;
+		
+		for (col=0; col<cols; col++) {
+			int x = ring[col%rep];
+			xvec[col + row*cols] = x;
+			
+			int next = force_right(x, y);
+			if (next < 0) next = x + gap;
+			
+			ring[col%rep] = next;
+		}
+	}
+	
+	delete[] ring;
+}
+
+// ------------------------------------------------------
 
 } /* namespace libeye */

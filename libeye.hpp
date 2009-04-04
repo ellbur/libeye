@@ -82,7 +82,7 @@ class Screen {
 	point3 to_real(const point2 &image) const;
 	point2 project(const point3 &eye, const point3 &p) const;
 	point3 project_back(const Screen &remote,
-		const point3 &eye, const point2 &im);
+		const point3 &eye, const point2 &im) const;
 	
 	// --------------
 	
@@ -106,6 +106,7 @@ class View {
 	
 	double *buffer;
 	
+	View(size_t _width, size_t _height);
 	View(size_t _width, size_t _height,
 		const Screen &_screen, const point3 &_eye);
 	~View();
@@ -131,7 +132,7 @@ class View {
 	void draw_pgram(const point3 &p,
 		const point3 e1, const point3 e2);
 	
-	point2 stereo_pair(const point3 &eye2, const point2 &p);
+	point2 stereo_pair(const point3 &eye2, const point2 &p) const;
 	
 	private:
 	
@@ -144,6 +145,68 @@ class View {
 	void start_fill();
 	void add_line(const point2 &im1, const point2 &im2);
 	void end_fill(const Screen &remote);
+};
+
+// --------------------------------------------
+
+class BiView {
+	public:
+	
+	// Data
+	
+	View left;
+	View right;
+	
+	int width;
+	int height;
+	
+	// Methods
+	
+	BiView(int _width, int _height, double eye_back, double eye_sep);
+	
+	void flatten(double depth);
+	
+	void draw_point(const point3 &p);
+	void draw_line(const point3 &p1, const point3 &p2);
+	
+	void draw_triangle(const point3 &p1,
+		const point3 &p2, const point3 &p3);
+	
+	void draw_pgram(const point3 &p,
+		const point3 e1, const point3 e2);
+	
+	point2 left_pair(const point2 &im);
+	point2 right_pair(const point2 &im);
+};
+
+// --------------------------------------------
+
+class StereoBlank {
+	public:
+	
+	int width;
+	int height;
+	
+	int *left_pair_buffer;
+	int *right_pair_buffer;
+	
+	StereoBlank(int _width, int _height);
+	StereoBlank(const BiView &biview);
+	StereoBlank(const View &right, const point3 &eye);
+	~StereoBlank();
+	
+	void set_left(const View &left, const point3 &eye);
+	void set_right(const View &right, const point3 &eye);
+	
+	int get_left(int x, int y) const;
+	int get_right(int x, int y) const;
+	
+	int force_left(int x, int y) const;
+	int force_right(int x, int y) const;
+	
+	// Caller must delete[] xvec
+	void isometric_grid(int &rows, int &cols,
+		int *&xvec, int &vgap, int rep) const;
 };
 
 // --------------------------------------------
