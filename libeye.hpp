@@ -160,9 +160,21 @@ class BiView {
 	int width;
 	int height;
 	
+	double dpi;
+	
+	double screen_width;
+	double screen_height;
+	
+	double eye_back;
+	double eye_sep;
+	
 	// Methods
 	
-	BiView(int _width, int _height, double eye_back, double eye_sep);
+	BiView(int _width, int _height, double _eye_back,
+		double _eye_sep, double _dpi=72.0);
+	
+	double half_width(double depth);
+	double half_height(double depth);
 	
 	void flatten(double depth);
 	

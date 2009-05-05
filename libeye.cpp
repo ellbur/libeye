@@ -308,14 +308,21 @@ void View::end_fill(const Screen &remote) {
 // ------------------------------------------------------
 // BiView
 
-BiView::BiView(int _width, int _height, double eye_back, double eye_sep) :
+BiView::BiView(int _width, int _height, double _eye_back,
+		double _eye_sep, double _dpi) :
 	left(_width, _height),
 	right(_width, _height)
 {
-	this->width  = _width;
-	this->height = _height;
+	this->width    = _width;
+	this->height   = _height;
+	this->eye_back = _eye_back;
+	this->eye_sep  = _eye_sep;
+	this->dpi      = _dpi;
 	
-	double scale = 0.02;
+	double scale = 1 / dpi;
+	
+	screen_width  = width  * scale;
+	screen_height = height * scale;
 	
 	double screen_width  = width  * scale;
 	double screen_height = height * scale;
@@ -334,6 +341,15 @@ BiView::BiView(int _width, int _height, double eye_back, double eye_sep) :
 	
 	right.screen = screen;
 	right.eye    = eye2;
+}
+
+double BiView::half_width(double depth) {
+	return eye_sep/2 +
+		(eye_back+depth)/eye_back * (eye_sep/2 + screen_width/2);
+}
+
+double BiView::half_height(double depth) {
+	return (eye_back + depth) / (eye_back) * screen_height / 2;
 }
 
 void BiView::flatten(double depth) {
