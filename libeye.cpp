@@ -465,7 +465,7 @@ int StereoBlank::get_left(int x, int y) const {
 	
 	int check_x = right_pair_buffer[pair_x + y*width];
 	
-	if (abs(check_x - x) > 2)
+	if (std::abs((double)(check_x - x)) > 2)
 		return -1;
 	
 	return pair_x;
@@ -481,7 +481,7 @@ int StereoBlank::get_right(int x, int y) const {
 	
 	int check_x = left_pair_buffer[pair_x + y*width];
 	
-	if (abs(check_x - x) > 2)
+	if (std::abs((double)(check_x - x)) > 2)
 		return -1;
 	
 	return pair_x;
