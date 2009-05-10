@@ -275,7 +275,7 @@ void View::add_line(const point2 &im1, const point2 &im2) {
 	xright = (int) pright.x();
 	
 	if (xleft  < 0)      xleft  = 0;
-	if (xright >= width) xright = width;
+	if (xright >= width) xright = width - 1;
 	
 	slope = (im2.y() - im1.y()) / (im2.x() - im1.x());
 	
@@ -456,7 +456,8 @@ void StereoBlank::set_right(const View &right, const point3 &eye) {
 }
 
 int StereoBlank::get_left(int x, int y) const {
-	if (x < 0 || x >= width) return -1;
+	if (x < 0 || x >= width)  return -1;
+	if (y < 0 || y >= height) return -1;
 	
 	int pair_x = left_pair_buffer[x + y*width];
 	
@@ -472,7 +473,8 @@ int StereoBlank::get_left(int x, int y) const {
 }
 
 int StereoBlank::get_right(int x, int y) const {
-	if (x < 0 || x >= width) return -1;
+	if (x < 0 || x >= width)  return -1;
+	if (y < 0 || y >= height) return -1;
 	
 	int pair_x = right_pair_buffer[x + y*width];
 	
@@ -488,7 +490,8 @@ int StereoBlank::get_right(int x, int y) const {
 }
 
 int StereoBlank::force_left(int x, int y) const {
-	if (x < 0 || x >= width) return -1;
+	if (x < 0 || x >= width)  return -1;
+	if (y < 0 || y >= height) return -1;
 	
 	int pair_x = left_pair_buffer[x + y*width];
 	
@@ -499,7 +502,8 @@ int StereoBlank::force_left(int x, int y) const {
 }
 
 int StereoBlank::force_right(int x, int y) const {
-	if (x < 0 || x >= width) return -1;
+	if (x < 0 || x >= width)  return -1;
+	if (y < 0 || y >= height) return -1;
 	
 	int pair_x = right_pair_buffer[x + y*width];
 	
